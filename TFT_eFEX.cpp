@@ -129,6 +129,95 @@ void TFT_eFEX::drawBezierSegment(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
   else Serial.println("Bad coordinate set - non-sequential!");
 }
 
+/***************************************************************************************
+** Function name:           drawBmpTransparent
+** Description:             draw a transparent bitmap stored in SPIFFS onto the TFT or in a Sprite
+***************************************************************************************/
+void TFT_eFEX::drawBmpTransparent(String filename, int16_t x, int16_t y, TFT_eSprite *_spr, uint16_t nTransRaw) {
+
+  if ( (_spr == nullptr) && ((x >= _tft->width()) || (y >= _tft->height()))) return;
+
+  fs::File bmpFS;
+
+  // Note: ESP32 passes "open" test even if file does not exist, whereas ESP8266 returns NULL
+  if ( !SPIFFS.exists(filename) )
+  {
+    Serial.println(F(" File not found")); // Can comment out if not needed
+    return;
+  }
+
+  // Open requested file
+  bmpFS = SPIFFS.open(filename, "r");
+
+  if (!bmpFS)
+  {
+    Serial.print("Bitmap file not found");
+    return;
+  }
+
+  uint32_t seekOffset;
+  uint16_t w, h, row, col;
+  uint8_t  r, g, b;
+
+  //uint32_t startTime = millis();
+
+  if (read16(bmpFS) == 0x4D42)
+  {
+    read32(bmpFS);
+    read32(bmpFS);
+    seekOffset = read32(bmpFS);
+    read32(bmpFS);
+    w = read32(bmpFS);
+    h = read32(bmpFS);
+
+    if ((read16(bmpFS) == 1) && (read16(bmpFS) == 24) && (read32(bmpFS) == 0))
+    {
+      y += h - 1;
+      
+      bool tftSwapBytes = _tft->getSwapBytes();
+
+      //_tft->setSwapBytes(_spr == nullptr);
+
+      bmpFS.seek(seekOffset);
+
+      uint16_t padding = (4 - ((w * 3) & 3)) & 3;
+      uint8_t lineBuffer[w * 3 + padding];
+
+      for (row = 0; row < h; row++) {
+        
+        bmpFS.read(lineBuffer, sizeof(lineBuffer));
+        uint8_t*  bptr = lineBuffer;
+        uint16_t* tptr = (uint16_t*)lineBuffer;
+        // Convert 24 to 16 bit colours
+        for (col = 0; col < w; col++)
+        {
+          b = *bptr++;
+          g = *bptr++;
+          r = *bptr++;
+          *tptr++ = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+        }
+
+        // Push the pixel row to screen, pushImage will crop the line if needed
+        // y is decremented as the BMP image is drawn bottom up
+        if (_spr == nullptr){
+
+          _tft->pushImage(x, y--, w, 1, (uint16_t*)lineBuffer, nTransRaw);
+        } 
+        else{
+          _spr->pushImage(x, y--, w, 1, (uint16_t*)lineBuffer, nTransRaw);
+        }          
+      }
+
+      _tft->setSwapBytes(tftSwapBytes); // Restore original setting
+
+      //Serial.print("Loaded in "); Serial.print(millis() - startTime);
+      //Serial.println(" ms");
+    }
+    else Serial.println("BMP format not recognised.");
+  }
+  bmpFS.close();
+}
+
 
 /***************************************************************************************
 ** Function name:           drawBmp

@@ -76,6 +76,7 @@ class TFT_eFEX : public TFT_eSPI {
            // Draw a bitmap stored in SPIFFS to the TFT or a Sprite if a Sprite instance is included
   void     drawBmp(String filename, int16_t x, int16_t y, TFT_eSprite *_spr = nullptr);
 //To do:  void     drawBmp(const char *filename, int16_t x, int16_t y, TFT_eSprite *_spr = nullptr);
+  void     drawBmpTransparent(String filename, int16_t x, int16_t y, TFT_eSprite *_spr = nullptr, uint16_t nTransRaw = 0);
 
            // Draw a Jpeg to the TFT, or to a Sprite if a Sprite instance is included (uses JPEGDecoder library)
   void     drawJpeg(String filename, int16_t xpos, int16_t ypos, TFT_eSprite *_spr = nullptr);
